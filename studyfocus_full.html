@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>StudyFocus — 夢中になれる勉強タイマー</title>
+<style>
+  /* ---------- Reset & base ---------- */
+  :root{
+    --bg:#f8fffb;
+    --card:#ffffff;
+    --text:#0f1724;
+    --muted:#475569;
+    --accent:#16a34a; /* green */
+    --accent-600:#059669;
+    --glass: rgba(255,255,255,0.6);
+    --danger:#ef4444;
+    --shadow: 0 6px 20px rgba(2,6,23,0.06);
+  }
+  [data-theme="dark"]{
+    --bg:#071019;
+    --card:#071827;
+    --text:#e6eef6;
+    --muted:#9fb0c3;
+    --accent:#34d399;
+    --accent-600:#10b981;
+    --glass: rgba(6,12,18,0.75);
+    --shadow: 0 10px 30px rgba(0,0,0,0.6);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter, "Helvetica Neue", Arial, sans-serif;background:linear-gradient(180deg,var(--bg),#eafaf0);color:var(--text)}
+  .app{max-width:1100px;margin:28px auto;padding:20px;display:grid;grid-template-columns:1fr 360px;gap:20px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent-600),var(--accent));box-shadow:0 6px 18px rgba(16,185,129,0.18);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:20px}
+  h1{font-size:20px;margin:0}
+  .subtitle{font-size:12px;color:var(--muted)}
+  /* ---------- Left column (main) ---------- */
+  .main{padding:18px;background:var(--card);border-radius:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px}
+  .timer-wrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+  .clock{
+    width:320px;min-width:220px;background:linear-gradient(180deg,rgba(255,255,255,0.92),var(--glass));padding:20px;border-radius:16px;text-align:center;box-shadow:0 10px 30px rgba(16,185,129,0.08)
+  }
+  .time-big{font-size:54px;font-weight:800;letter-spacing:1px}
+  .mode-label{margin-top:6px;font-size:14px;color:var(--muted)}
+  .controls{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  button.primary{background:var(--accent);border:none;color:white;padding:12px 18px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 8px 20px rgba(16,185,129,0.12)}
+  button.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06);padding:10px 14px;border-radius:10px;cursor:pointer}
+  button.warn{background:var(--danger);color:white;border:none;padding:10px 14px;border-radius:10px}
+  .mini{padding:8px 10px;font-size:14px}
+  .options{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .card{padding:12px;background:linear-gradient(180deg,var(--card),var(--glass));border-radius:12px;box-shadow:var(--shadow)}
+  .settings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  input[type="number"], select, input[type="text"], textarea{padding:8px;border-radius:8px;border:1px solid rgba(2,6,23,0.06);width:100%;font-size:14px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  .subject-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .subject-chip{padding:6px 10px;border-radius:999px;background:rgba(16,185,129,0.08);cursor:pointer;border:1px solid rgba(16,185,129,0.06);font-weight:600;color:var(--accent-600)}
+  .subject-chip.active{background:linear-gradient(90deg,var(--accent),var(--accent-600));color:white;box-shadow:0 8px 20px rgba(16,185,129,0.12)}
+  /* logs */
+  .logs{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto}
+  .log-item{display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.8),transparent)}
+  .meta{color:var(--muted);font-size:12px}
+  .stats{display:flex;gap:10px;align-items:center}
+  .stat{background:linear-gradient(90deg,rgba(255,255,255,0.8),transparent);padding:10px;border-radius:8px;text-align:center;min-width:90px}
+  .stat .num{font-weight:800;font-size:18px}
+  /* right column */
+  .side{display:flex;flex-direction:column;gap:14px}
+  .side .card{padding:14px}
+  .chart{height:160px;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.02));border-radius:8px;padding:8px}
+  .export {display:flex;gap:8px;flex-wrap:wrap}
+  .footer{font-size:12px;color:var(--muted);text-align:center;padding:12px}
+  /* focus overlay */
+  .focus-overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.85),rgba(2,6,23,0.94));display:flex;align-items:center;justify-content:center;z-index:9999}
+  .focus-box{background:transparent;border-radius:14px;color:white;text-align:center;padding:40px;backdrop-filter:blur(3px)}
+  .focus-time{font-size:86px;font-weight:900;letter-spacing:2px;margin-bottom:8px}
+  .focus-label{opacity:0.9;margin-bottom:18px}
+  /* responsive */
+  @media(max-width:980px){
+    .app{grid-template-columns:1fr; padding:12px}
+    .clock{width:100%}
+    .controls{justify-content:flex-start}
+  }
+  /* tiny helper */
+  .muted{color:var(--muted)}
+  .row{display:flex;gap:8px;align-items:center}
+  .pill{padding:6px 10px;background:rgba(2,6,23,0.04);border-radius:999px;font-weight:700}
+  .small{font-size:13px}
+</style>
+</head>
+<body>
+
+<div id="root" class="app" data-theme="light">
+  <div>
+    <header>
+      <div class="brand">
+        <div class="logo">SF</div>
+        <div>
+          <h1>StudyFocus</h1>
+          <div class="subtitle">夢中になれる勉強 — 記録と集中をデザイン</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="pill small">完全オフライン</div>
+        <button id="themeToggle" class="ghost mini">Dark</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Timer & settings -->
+      <section>
+        <div class="timer-wrap">
+          <div class="clock card" id="clockCard">
+            <div class="time-big" id="timeDisplay">25:00</div>
+            <div class="mode-label" id="modeLabel">Work</div>
+
+            <div class="controls" style="margin-top:14px">
+              <button id="startBtn" class="primary">Start ▶</button>
+              <button id="pauseBtn" class="ghost mini">Pause ||</button>
+              <button id="resetBtn" class="ghost mini">Reset ↺</button>
+              <button id="focusBtn" class="ghost mini">Deep Focus ⤢</button>
+            </div>
+
+            <div style="margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+              <div class="card" style="min-width:140px">
+                <label>Work (min)</label>
+                <input id="workInput" type="number" min="1" value="25" />
+              </div>
+              <div class="card" style="min-width:140px">
+                <label>Short Break (min)</label>
+                <input id="breakInput" type="number" min="1" value="5" />
+              </div>
+              <div class="card" style="min-width:140px">
+                <label>Long Break (min)</label>
+                <input id="longBreakInput" type="number" min="1" value="20" />
+              </div>
+            </div>
+
+            <div style="margin-top:10px" class="small muted">
+              Auto next <input id="autoNext" type="checkbox" checked /> &nbsp; • &nbsp;
+              Sound <input id="soundToggle" type="checkbox" checked /> &nbsp; • &nbsp;
+              Cycles before long <input id="cyclesInput" type="number" value="4" min="1" style="width:58px"/>
+            </div>
+          </div>
+
+          <div style="flex:1;min-width:260px">
+            <div class="card">
+              <label>Subject</label>
+              <div style="display:flex;gap:8px">
+                <input id="subjectInput" type="text" placeholder="例: 数学 / 英語" />
+                <button id="addSubjectBtn" class="ghost">Add</button>
+              </div>
+
+              <div class="subject-list" id="subjectList" style="margin-top:8px"></div>
+
+              <label style="margin-top:12px">Note</label>
+              <textarea id="noteInput" rows="3" placeholder="今日の目標や集中法をメモ..."></textarea>
+
+              <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+                <button id="saveNoteBtn" class="ghost small">Save Note</button>
+                <button id="exportBtn" class="ghost small">Export JSON</button>
+                <button id="importBtn" class="ghost small">Import</button>
+                <input id="importFile" type="file" accept="application/json" style="display:none"/>
+              </div>
+            </div>
+
+            <div style="margin-top:10px" class="card">
+              <div class="row" style="justify-content:space-between">
+                <div>
+                  <div class="muted small">Today's minutes</div>
+                  <div style="font-weight:800;font-size:22px" id="todayMinutes">0</div>
+                </div>
+                <div>
+                  <div class="muted small">Streak</div>
+                  <div style="font-weight:800;font-size:22px" id="streakCount">0</div>
+                </div>
+                <div>
+                  <div class="muted small">Sessions</div>
+                  <div style="font-weight:800;font-size:22px" id="sessionCount">0</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- logs -->
+        <div style="margin-top:12px" class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>Recent Sessions</strong> <span class="muted small">（クリックで詳細）</span></div>
+            <div class="row">
+              <button id="clearLogs" class="ghost small">Clear logs</button>
+              <button id="exportCSV" class="ghost small">Export CSV</button>
+            </div>
+          </div>
+          <div class="logs" id="logsArea" style="margin-top:10px"></div>
+        </div>
+
+        <div style="margin-top:12px" class="card">
+          <strong>Quick Tips</strong>
+          <ul style="margin:8px 0 0 18px;color:var(--muted)">
+            <li>短めの区切り（25分）で集中 → 小休憩を挟む</li>
+            <li>連続日数を作ることで習慣化しやすくなる</li>
+            <li>スマホは通知オフ、集中中はDeep Focusを使おう</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- right column (side) -->
+      <aside class="side">
+        <div class="card">
+          <strong>Weekly Chart</strong>
+          <div class="chart" id="chartWrap">
+            <canvas id="weekChart" width="400" height="140"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <strong>Achievements</strong>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <div class="stat"><div class="num" id="statSessions">0</div><div class="muted small">Sessions</div></div>
+            <div class="stat"><div class="num" id="statMinutes">0</div><div class="muted small">Minutes</div></div>
+            <div class="stat"><div class="num" id="statBestStreak">0</div><div class="muted small">Best streak</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <strong>Shortcuts</strong>
+          <div class="muted small" style="margin-top:8px">
+            Space: Start/Pause &nbsp; • &nbsp; R: Reset &nbsp; • &nbsp; F: Deep Focus &nbsp; • &nbsp; N: New subject
+          </div>
+        </div>
+
+        <div class="card">
+          <strong>Appearance</strong>
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+            <button id="themeLight" class="ghost small">Light</button>
+            <button id="themeDark" class="ghost small">Dark</button>
+            <button id="accentGreen" class="ghost small">Green</button>
+          </div>
+        </div>
+
+        <div class="card footer">
+          Made with ❤️ — 完全オリジナル / オフラインで動作します
+        </div>
+      </aside>
+    </main>
+  </div>
+</div>
+
+<!-- Focus overlay (hidden by default) -->
+<div id="focusOverlay" class="focus-overlay" style="display:none">
+  <div class="focus-box">
+    <div class="focus-time" id="focusTime">25:00</div>
+    <div class="focus-label">集中モード — 画面を見つめて、夢中になろう</div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button id="focusClose" class="ghost">Exit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Storage keys & helpers ========== */
+const STORAGE_KEY = 'studyfocus_v2_data';
+const THEME_KEY = 'studyfocus_theme';
+const parseJSON = (s, fallback) => { try { return JSON.parse(s); } catch(e){ return fallback; } };
+
+/* ========== App state ========== */
+let state = {
+  sessions: [], // {id, subject, note, start, end}
+  subjects: ['General','Math','English','Science','History'],
+  settings: {
+    workMin:25, breakMin:5, longBreakMin:20, cyclesBeforeLong:4,
+    autoNext:true, sound:true
+  },
+  running: false,
+  mode: 'work', // work / break / long
+  remainingSec: 25*60,
+  currentSessionId: null,
+  cycleCount:0,
+  lastTick: null
+};
+
+/* ========== DOM refs ========== */
+const root = document.getElementById('root');
+const timeDisplay = document.getElementById('timeDisplay');
+const modeLabel = document.getElementById('modeLabel');
+const startBtn = document.getElementById('startBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetBtn = document.getElementById('resetBtn');
+const focusBtn = document.getElementById('focusBtn');
+const workInput = document.getElementById('workInput');
+const breakInput = document.getElementById('breakInput');
+const longBreakInput = document.getElementById('longBreakInput');
+const cyclesInput = document.getElementById('cyclesInput');
+const autoNextCB = document.getElementById('autoNext');
+const soundToggle = document.getElementById('soundToggle');
+const subjectList = document.getElementById('subjectList');
+const subjectInput = document.getElementById('subjectInput');
+const addSubjectBtn = document.getElementById('addSubjectBtn');
+const noteInput = document.getElementById('noteInput');
+const saveNoteBtn = document.getElementById('saveNoteBtn');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const importFile = document.getElementById('importFile');
+const logsArea = document.getElementById('logsArea');
+const todayMinutesEl = document.getElementById('todayMinutes');
+const streakCountEl = document.getElementById('streakCount');
+const sessionCountEl = document.getElementById('sessionCount');
+const statSessions = document.getElementById('statSessions');
+const statMinutes = document.getElementById('statMinutes');
+const statBestStreak = document.getElementById('statBestStreak');
+const clearLogsBtn = document.getElementById('clearLogs');
+const exportCSVBtn = document.getElementById('exportCSV');
+const chartCanvas = document.getElementById('weekChart');
+const focusOverlay = document.getElementById('focusOverlay');
+const focusTime = document.getElementById('focusTime');
+const focusClose = document.getElementById('focusClose');
+const themeToggle = document.getElementById('themeToggle');
+const themeLight = document.getElementById('themeLight');
+const themeDark = document.getElementById('themeDark');
+const accentGreen = document.getElementById('accentGreen');
+const importFileInput = document.getElementById('importFile');
+
+/* ========== Audio ========== */
+const beep = (() => {
+  const ctx = (typeof AudioContext !== 'undefined') ? new AudioContext() : null;
+  return (freq=880, dur=0.08) => {
+    if(!ctx) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.value = freq;
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    o.stop(ctx.currentTime + dur + 0.02);
+  };
+})();
+
+/* ========== Utilities ========== */
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    sessions: state.sessions,
+    subjects: state.subjects,
+    settings: state.settings
+  }));
+}
+function loadState(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(!raw) return;
+  const parsed = parseJSON(raw, null);
+  if(!parsed) return;
+  state.sessions = parsed.sessions || [];
+  state.subjects = parsed.subjects || state.subjects;
+  state.settings = parsed.settings || state.settings;
+}
+function formatTimeSec(sec){
+  const mm = Math.floor(sec/60).toString().padStart(2,'0');
+  const ss = (sec%60).toString().padStart(2,'0');
+  const hh = Math.floor(sec/3600);
+  if(hh>0) return `${hh}:${mm}:${ss}`;
+  return `${mm}:${ss}`;
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function todayKey(date = new Date()){ return date.toISOString().slice(0,10); }
+
+/* ========== Render UI ========== */
+function renderSubjects(){
+  subjectList.innerHTML = '';
+  state.subjects.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'subject-chip' + (s===state.selectedSubject ? ' active' : '');
+    el.innerText = s;
+    el.onclick = () => {
+      state.selectedSubject = s;
+      renderSubjects();
+    };
+    subjectList.appendChild(el);
+  });
+  // ensure selectedSubject exists
+  if(!state.selectedSubject) state.selectedSubject = state.subjects[0];
+}
+function renderTimer(){
+  timeDisplay.innerText = formatTimeSec(state.remainingSec);
+  modeLabel.innerText = state.mode === 'work' ? 'Work' : (state.mode==='break' ? 'Break' : 'Long Break');
+  startBtn.innerText = state.running ? 'Running…' : 'Start ▶';
+  startBtn.disabled = state.running;
+  pauseBtn.disabled = !state.running;
+  // update focus overlay
+  focusTime.innerText = formatTimeSec(state.remainingSec);
+}
+function renderLogs(){
+  logsArea.innerHTML = '';
+  const reversed = state.sessions.slice().reverse();
+  reversed.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'log-item';
+    const left = document.createElement('div');
+    left.innerHTML = `<div style="font-weight:700">${s.subject || 'General'}</div><div class="meta">${new Date(s.start).toLocaleString()} — ${s.end ? new Date(s.end).toLocaleTimeString() : 'running'}</div>`;
+    const right = document.createElement('div');
+    right.style.textAlign='right';
+    right.innerHTML = `<div style="font-weight:700">${s.end ? Math.round((s.end - s.start)/60000) + 'm' : ''}</div><div class="meta">${s.note ? s.note.slice(0,40) : ''}</div>`;
+    el.appendChild(left);
+    el.appendChild(right);
+    el.onclick = () => { showSessionDetail(s); };
+    logsArea.appendChild(el);
+  });
+}
+function showSessionDetail(s){
+  alert(`Subject: ${s.subject || 'General'}\nStart: ${new Date(s.start).toLocaleString()}\nEnd: ${s.end ? new Date(s.end).toLocaleString() : '—'}\nMinutes: ${s.end ? Math.round((s.end - s.start)/60000) : '—'}\nNote: ${s.note||''}`);
+}
+function renderStats(){
+  const totalMinutes = state.sessions.filter(s => s.end).reduce((sum,s) => sum + Math.round((s.end - s.start)/60000), 0);
+  const sessionsCount = state.sessions.length;
+  const bestStreak = calcBestStreak();
+  const todayMinutes = state.sessions.filter(s => s.end && new Date(s.start).toISOString().slice(0,10) === todayKey()).reduce((a,b)=>a + Math.round((b.end-b.start)/60000),0);
+  const streak = calcCurrentStreak();
+  statMinutes.innerText = totalMinutes;
+  statSessions.innerText = sessionsCount;
+  statBestStreak.innerText = bestStreak;
+  todayMinutesEl.innerText = todayMinutes;
+  streakCountEl.innerText = streak;
+  sessionCountEl.innerText = sessionsCount;
+}
+
+/* ========== Streaks & calculations ========== */
+function calcDaysMap(){
+  const map = {};
+  state.sessions.forEach(s => {
+    if(!s.end) return;
+    const k = new Date(s.start).toISOString().slice(0,10);
+    map[k] = (map[k] || 0) + Math.round((s.end - s.start)/60000);
+  });
+  return map;
+}
+function calcCurrentStreak(minMinutes = 20){
+  const map = calcDaysMap();
+  let cur = new Date();
+  let streak = 0;
+  for(let i=0;i<365;i++){
+    const k = cur.toISOString().slice(0,10);
+    if((map[k] || 0) >= minMinutes){ streak++; } else break;
+    cur.setDate(cur.getDate() - 1);
+  }
+  return streak;
+}
+function calcBestStreak(minMinutes = 20){
+  const map = calcDaysMap();
+  const days = Object.keys(map).sort();
+  let best = 0, cur = 0, prev = null;
+  days.forEach(day => {
+    if(prev === null) { cur = 1; prev = day; }
+    else {
+      const prevDate = new Date(prev); const thisDate = new Date(day);
+      prevDate.setDate(prevDate.getDate() + 1);
+      if(prevDate.toISOString().slice(0,10) === day && map[day] >= minMinutes) {
+        cur++;
+      } else {
+        best = Math.max(best, cur);
+        cur = map[day] >= minMinutes ? 1 : 0;
+      }
+      prev = day;
+    }
+    best = Math.max(best, cur);
+  });
+  return best;
+}
+
+/* ========== Chart (canvas drawing) ========== */
+function drawWeeklyChart(){
+  const ctx = chartCanvas.getContext('2d');
+  const w = chartCanvas.width = chartCanvas.clientWidth;
+  const h = chartCanvas.height = chartCanvas.clientHeight;
+  ctx.clearRect(0,0,w,h);
+  // prepare 7 days
+  const days = [];
+  const today = new Date();
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(today.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    days.push({key, label: d.toLocaleDateString(undefined, {month:'2-digit', day:'2-digit'}), mins:0});
+  }
+  const map = calcDaysMap();
+  days.forEach(d => d.mins = map[d.key] || 0);
+  const max = Math.max(10, ...days.map(d=>d.mins));
+  // draw base grid
+  ctx.fillStyle = 'rgba(255,255,255,0.02)';
+  ctx.fillRect(0,0,w,h);
+  // draw bars
+  const pad = 28;
+  const bw = (w - pad*2) / days.length;
+  days.forEach((d,i) => {
+    const x = pad + i * bw + bw*0.12;
+    const barW = bw*0.76;
+    const barH = (d.mins / max) * (h - 50);
+    const y = h - barH - 22;
+    // gradient
+    const grad = ctx.createLinearGradient(0,y,0,y+barH);
+    grad.addColorStop(0, 'rgba(16,185,129,0.95)');
+    grad.addColorStop(1, 'rgba(34,197,94,0.6)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, barW, barH);
+    // label
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted') || '#9aa';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(d.label, x, h - 6);
+    // value
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px sans-serif';
+    if(barH > 18) ctx.fillText(d.mins + 'm', x, y - 6);
+    else ctx.fillText(d.mins + 'm', x, y + 12);
+  });
+}
+
+/* ========== Timer logic ========== */
+let tickInterval = null;
+function resetTimerToMode(mode){
+  state.mode = mode;
+  if(mode === 'work') state.remainingSec = state.settings.workMin * 60;
+  else if(mode === 'break') state.remainingSec = state.settings.breakMin * 60;
+  else state.remainingSec = state.settings.longBreakMin * 60;
+  renderTimer();
+}
+function startTimer(){
+  if(state.running) return;
+  if(state.mode === 'work' && state.remainingSec === state.settings.workMin*60){
+    // start a new session record
+    const sid = uid();
+    state.currentSessionId = sid;
+    state.sessions.push({id:sid, subject: state.selectedSubject || 'General', note: (state.pendingNote || ''), start: Date.now(), end: null});
+    state.pendingNote = '';
+    saveState();
+    renderLogs();
+    renderStats();
+  }
+  state.running = true;
+  state.lastTick = Date.now();
+  tickInterval = setInterval(() => {
+    const now = Date.now();
+    const elapsed = Math.round((now - state.lastTick)/1000);
+    state.lastTick = now;
+    state.remainingSec = Math.max(0, state.remainingSec - elapsed);
+    if(state.remainingSec <= 0){
+      handleTimerEnd();
+    }
+    renderTimer();
+    drawWeeklyChart();
+  }, 1000);
+  renderTimer();
+}
+function pauseTimer(){
+  if(!state.running) return;
+  state.running = false;
+  clearInterval(tickInterval); tickInterval = null;
+  // close current session if work
+  if(state.currentSessionId){
+    const s = state.sessions.find(x => x.id === state.currentSessionId);
+    if(s && !s.end){
+      s.end = Date.now();
+      state.currentSessionId = null;
+      saveState();
+    }
+  }
+  renderLogs();
+  renderStats();
+  renderTimer();
+}
+function handleTimerEnd(){
+  // beep and auto actions
+  if(state.settings.sound) beep(880, 0.18);
+  // if work finished, close session
+  if(state.mode === 'work'){
+    const sid = state.currentSessionId;
+    if(sid){
+      const s = state.sessions.find(x => x.id === sid);
+      if(s && !s.end) s.end = Date.now();
+      state.currentSessionId = null;
+      saveState();
+    }
+    state.cycleCount++;
+    // choose break type
+    if(state.cycleCount >= state.settings.cyclesBeforeLong){
+      state.cycleCount = 0;
+      state.mode = 'long';
+    } else {
+      state.mode = 'break';
+    }
+  } else {
+    // break ended -> go to work
+    state.mode = 'work';
+  }
+  // set remaining for new mode
+  if(state.mode === 'work') state.remainingSec = state.settings.workMin * 60;
+  else if(state.mode === 'break') state.remainingSec = state.settings.breakMin * 60;
+  else state.remainingSec = state.settings.longBreakMin * 60;
+
+  // autoNext handle
+  if(state.settings.autoNext){
+    // small delay then start
+    renderTimer();
+    setTimeout(() => {
+      startTimer();
+      // if it's work and auto-started create session
+      if(state.mode === 'work'){
+        const sid = uid();
+        state.currentSessionId = sid;
+        state.sessions.push({id:sid, subject: state.selectedSubject || 'General', note: (state.pendingNote || ''), start: Date.now(), end: null});
+        state.pendingNote = '';
+        saveState();
+        renderLogs();
+      }
+    }, 700);
+  } else {
+    // stop running, require manual start
+    state.running = false;
+    clearInterval(tickInterval);
+    tickInterval = null;
+  }
+  saveState();
+  renderLogs();
+  renderStats();
+  renderTimer();
+}
+
+/* ========== Events & bindings ========== */
+startBtn.onclick = () => { startTimer(); };
+pauseBtn.onclick = () => { pauseTimer(); };
+resetBtn.onclick = () => { state.running = false; clearInterval(tickInterval); tickInterval = null; resetTimerToMode('work'); };
+focusBtn.onclick = () => { toggleFocus(true); };
+
+workInput.onchange = () => { state.settings.workMin = Math.max(1, +workInput.value || 1); saveState(); resetTimerToMode('work'); renderTimer(); };
+breakInput.onchange = () => { state.settings.breakMin = Math.max(1, +breakInput.value || 1); saveState(); };
+longBreakInput.onchange = () => { state.settings.longBreakMin = Math.max(1, +longBreakInput.value || 1); saveState(); };
+cyclesInput.onchange = () => { state.settings.cyclesBeforeLong = Math.max(1, +cyclesInput.value || 1); saveState(); };
+autoNextCB.onchange = () => { state.settings.autoNext = autoNextCB.checked; saveState(); };
+soundToggle.onchange = () => { state.settings.sound = soundToggle.checked; saveState(); };
+
+addSubjectBtn.onclick = () => {
+  const v = subjectInput.value.trim();
+  if(!v) { subjectInput.focus(); return; }
+  if(!state.subjects.includes(v)) state.subjects.unshift(v);
+  state.selectedSubject = v;
+  subjectInput.value = '';
+  renderSubjects();
+  saveState();
+};
+subjectInput.onkeydown = (e) => { if(e.key === 'Enter') addSubjectBtn.onclick(); };
+
+saveNoteBtn.onclick = () => {
+  state.pendingNote = noteInput.value.trim();
+  alert('メモを保存しました（次のセッション開始時に自動でログに入ります）');
+  noteInput.value = '';
+};
+
+/* Export & import */
+exportBtn.onclick = () => {
+  const data = { sessions: state.sessions, subjects: state.subjects, settings: state.settings };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'studyfocus_export.json'; a.click();
+  URL.revokeObjectURL(url);
+};
+importBtn.onclick = () => importFileInput.click();
+importFileInput.onchange = (e) => {
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if(parsed.sessions) state.sessions = parsed.sessions;
+      if(parsed.subjects) state.subjects = parsed.subjects;
+      if(parsed.settings) state.settings = parsed.settings;
+      saveState();
+      renderAll();
+      alert('読み込み完了');
+    } catch(err){
+      alert('読み込みに失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(f);
+};
+
+/* CSV export */
+exportCSVBtn.onclick = () => {
+  const rows = [['id','subject','start','end','minutes','note']];
+  state.sessions.forEach(s => {
+    rows.push([s.id, `"${s.subject||''}"`, new Date(s.start).toISOString(), s.end?new Date(s.end).toISOString():'', s.end?Math.round((s.end-s.start)/60000):'', `"${(s.note||'')}"`]);
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'study_sessions.csv'; a.click();
+};
+
+/* logs clear */
+clearLogsBtn.onclick = () => {
+  if(confirm('本当に全てのログを消しますか？')) { state.sessions = []; saveState(); renderAll(); }
+};
+
+/* theme */
+themeToggle.onclick = () => {
+  const t = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', t);
+  themeToggle.innerText = t === 'dark' ? 'Light' : 'Dark';
+  localStorage.setItem(THEME_KEY, t);
+};
+themeLight.onclick = () => { root.setAttribute('data-theme','light'); localStorage.setItem(THEME_KEY,'light'); };
+themeDark.onclick = () => { root.setAttribute('data-theme','dark'); localStorage.setItem(THEME_KEY,'dark'); };
+accentGreen.onclick = () => { /* reserved for more accents */ alert('アクセント色は現在グリーンに固定されています'); };
+
+/* focus overlay */
+function toggleFocus(show){
+  if(show){
+    focusOverlay.style.display = 'flex';
+    document.documentElement.requestFullscreen?.();
+    focusBtn.disabled = true;
+  } else {
+    focusOverlay.style.display = 'none';
+    document.exitFullscreen?.();
+    focusBtn.disabled = false;
+  }
+}
+focusClose.onclick = () => toggleFocus(false);
+
+/* keyboard shortcuts */
+document.addEventListener('keydown', (e) => {
+  if(e.key === ' '){
+    e.preventDefault();
+    if(state.running) pauseTimer(); else startTimer();
+  } else if(e.key.toLowerCase() === 'r'){ state.running = false; clearInterval(tickInterval); tickInterval = null; resetTimerToMode('work'); renderTimer(); }
+  else if(e.key.toLowerCase() === 'f'){ toggleFocus(true); }
+  else if(e.key.toLowerCase() === 'n'){ subjectInput.focus(); }
+});
+
+/* show session detail on create */
+function ensureTodaySessionClosed(){
+  const last = state.sessions[state.sessions.length - 1];
+  if(last && !last.end){
+    last.end = Date.now();
+    saveState();
+  }
+}
+
+/* ========== Initialization ========== */
+function renderAll(){
+  loadState();
+  // apply settings inputs
+  workInput.value = state.settings.workMin;
+  breakInput.value = state.settings.breakMin;
+  longBreakInput.value = state.settings.longBreakMin;
+  cyclesInput.value = state.settings.cyclesBeforeLong;
+  autoNextCB.checked = state.settings.autoNext;
+  soundToggle.checked = state.settings.sound;
+  renderSubjects();
+  renderTimer();
+  renderLogs();
+  renderStats();
+  drawWeeklyChart();
+  // theme
+  const th = localStorage.getItem(THEME_KEY) || 'light';
+  root.setAttribute('data-theme', th);
+  themeToggle.innerText = th === 'dark' ? 'Light' : 'Dark';
+}
+renderAll();
+
+/* Make canvas responsive */
+window.addEventListener('resize', () => drawWeeklyChart());
+
+/* ========== On unload, close running session ========== */
+window.addEventListener('beforeunload', (e) => {
+  if(state.running && state.currentSessionId){
+    const s = state.sessions.find(x => x.id === state.currentSessionId);
+    if(s && !s.end) s.end = Date.now();
+    saveState();
+  }
+});
+
+/* Autosave on state change (debounced) */
+let saveTimer = null;
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveState(), 400);
+}
+['settings','sessions','subjects'].forEach(k => {});
+// call scheduleSave at key points in code where changes happen
+// we call saveState directly when needed in this script
+
+</script>
+</body>
+</html>
